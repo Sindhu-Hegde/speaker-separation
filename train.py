@@ -132,9 +132,9 @@ def save_checkpoint(model, optimizer, train_loss, checkpoint_dir, step, epoch):
 def load_checkpoint(args, model, optimizer):
 
 	if not torch.cuda.is_available():
-		checkpoint = torch.load(args.checkpoint, map_location='cpu')
+		checkpoint = torch.load(args.checkpoint_path, map_location='cpu')
 	else:
-		checkpoint = torch.load(args.checkpoint)
+		checkpoint = torch.load(args.checkpoint_path)
 	
 	epoch_resume = checkpoint['epoch']
 	
@@ -175,42 +175,36 @@ def print_network(model, summary=False):
 if __name__ == '__main__':
 
 	parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-	parser.add_argument('-i', '--img_size', type=int, default=96, required=False, \
-						help='Input image size')
-	parser.add_argument('-nf', '--num_frames', type=int, default=25, required=False, \
-						help='Num of frames to consider')
-	parser.add_argument('-b', '--batch_size', type=int, default=16, required=False, \
-						help='Batch size to train the model')
-	parser.add_argument('-e', '--epochs', type=int, default=500000, required=False, \
-						help='No of epochs to train the model')
-	parser.add_argument('-w', '--num_workers', type=int, default=16, help='No of workers')
-	parser.add_argument('-g', '--n_gpu', type=int, default=1, required=False, help='No of GPUs')
-	parser.add_argument('-cf', '--ckpt_freq', type=int, default=1, required=False, \
-						help='Frequency of saving the model')
-	parser.add_argument('-ckpt', '--checkpoint', default=None, \
-						help='Path of the pre-trained model checkpoint to resume training')
-	parser.add_argument('-md', '--model_directory', default='saved_models/', \
-						help='Path to save the model')
-	parser.add_argument('-lr', '--learning_rate', default=None, type=float,\
-						help='learning rate')
-	parser.add_argument('-vi', '--validation_interval', default=2, type=int, \
-						help='Validation interval')
+	
+	parser.add_argument('--data_root_vox2_train', help="Root folder of the Vox2 train dataset", required=True, type=str)
+	
+	parser.add_argument('--checkpoint_dir', required=True, help='Path to save the trained model')
+	parser.add_argument('--checkpoint_path', default=None, help='Path of the pre-trained model checkpoint to resume training')
+	parser.add_argument('--ckpt_freq', type=int, default=1, required=False, help='Frequency of saving the model')
+	
+	parser.add_argument('--img_size', type=int, default=96, required=False, help='Input image size')
+	parser.add_argument('--num_frames', type=int, default=25, required=False, help='Num of frames to consider')
+
+	parser.add_argument('--epochs', type=int, default=500000, required=False, help='No of epochs to train the model')
+	parser.add_argument('--batch_size', type=int, default=16, required=False, help='Batch size to train the model')
+	parser.add_argument('--learning_rate', default=None, type=float, help='learning rate')
+
+	parser.add_argument('--n_gpu', type=int, default=1, required=False, help='No of GPUs')
+	parser.add_argument('--num_workers', type=int, default=16, help='No of workers')
+	parser.add_argument('--validation_interval', default=2, type=int, help='Frequency to validate the model')
 			
 	args = parser.parse_args()
 
 
 	args.batch_size = args.n_gpu * args.batch_size	
-	hp = hparams.hparams
 
 	# Load the train and test data
-	train_loader = load_data(img_size=args.img_size, num_frames=args.num_frames, hparams=hp, \
-							num_workers=args.num_workers, batch_size=args.batch_size, shuffle=True)
+	train_loader = load_data(data_path=args.data_root_vox2_train, img_size=args.img_size, num_frames=args.num_frames, num_workers=args.num_workers, batch_size=args.batch_size, shuffle=True)
 
 	total_batch = len(train_loader)
 	print("Total train batch: ", total_batch)
 
-	test_loader = load_data(img_size=args.img_size, num_frames=args.num_frames, hparams=hp, \
-							num_workers=args.num_workers, batch_size=args.batch_size, shuffle=True, test=True)
+	test_loader = load_data(data_path=args.data_root_vox2_train, img_size=args.img_size, num_frames=args.num_frames, num_workers=args.num_workers, batch_size=args.batch_size, shuffle=True, split='test')
 
 
 	device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -232,7 +226,7 @@ if __name__ == '__main__':
 	if args.learning_rate is not None:
 		lr = args.learning_rate
 	else:
-		lr = hp.initial_learning_rate
+		lr = hparams.hparams.initial_learning_rate
 
 	optimizer = optim.Adam([p for p in model.parameters() if p.requires_grad], lr=lr)
 
@@ -242,7 +236,7 @@ if __name__ == '__main__':
 		model, epoch_resume = load_checkpoint(args, model, optimizer)
 
 	# Create the folder to save the checkpoints
-	folder = args.model_directory
+	folder = args.checkpoint_dir
 	if not os.path.exists(folder):
 		os.makedirs(folder)
 

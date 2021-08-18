@@ -3,7 +3,7 @@ from torch.utils.data.sampler import SubsetRandomSampler
 import torch
 import numpy as np
 import audio.audio_utils as audio
-import audio.hparams as hp
+import audio.hparams as hparams
 import random
 import os
 from glob import glob
@@ -15,14 +15,14 @@ from decord import cpu, gpu
      
 class DataGenerator(Dataset):
 
-    def __init__(self, img_size, num_frames, hparams, sampling_rate, test):
+    def __init__(self, data_path, img_size, num_frames, sampling_rate, split):
 
+        self.data_path = data_path
         self.img_size = img_size
         self.num_frames = num_frames
-        self.hparams = hparams
-        self.test = test
-        self.files = self.hparams.all_audio if not test else self.hparams.all_test_audio
         self.sampling_rate = sampling_rate
+        self.split = split
+        self.files = hparams.get_filelist(data_path, split) 
         
 
     def __len__(self):
@@ -138,22 +138,22 @@ class DataGenerator(Dataset):
 
     def crop_audio_window(self, gt_wav, noisy_wav, center_frame):
 
-        if gt_wav.shape[0] - self.hparams.wav_step_size < 16000: 
+        if gt_wav.shape[0] - hparams.hparams.wav_step_size < 16000: 
             return None, None
 
         start_frame_id = center_frame - self.num_frames//2
         if start_frame_id < 0:
             return None, None
 
-        start_idx = int(start_frame_id * (self.sampling_rate/self.hparams.fps))
-        end_idx = start_idx + self.hparams.wav_step_size
+        start_idx = int(start_frame_id * (self.sampling_rate/hparams.hparams.fps))
+        end_idx = start_idx + hparams.hparams.wav_step_size
 
         gt_seg_wav = gt_wav[start_idx : end_idx]
-        if len(gt_seg_wav) != self.hparams.wav_step_size: 
+        if len(gt_seg_wav) != hparams.hparams.wav_step_size: 
             return None, None
 
         noisy_seg_wav = noisy_wav[start_idx : end_idx]
-        if len(noisy_seg_wav) != self.hparams.wav_step_size: 
+        if len(noisy_seg_wav) != hparams.hparams.wav_step_size: 
             return None, None
 
         return gt_seg_wav, noisy_seg_wav
@@ -162,7 +162,7 @@ class DataGenerator(Dataset):
 
     def get_spec(self, wav):
 
-        stft = librosa.stft(y=wav, n_fft=self.hparams.n_fft, hop_length=self.hparams.hop_size, win_length=self.hparams.win_size).T
+        stft = librosa.stft(y=wav, n_fft=hparams.hparams.n_fft, hop_length=hparams.hparams.hop_size, win_length=hparams.hparams.win_size).T
         stft = stft[:-1]
         # print("STFT: ", stft.shape)                                       # 100x257
 
@@ -178,12 +178,9 @@ class DataGenerator(Dataset):
         return spec
 
 
-def load_data(img_size, num_frames, hparams, num_workers, batch_size=4, test=False, \
-                sampling_rate=16000, shuffle=True):
+def load_data(data_path, img_size, num_frames, num_workers, batch_size=4, split='train', sampling_rate=16000, shuffle=True):
     
-    train_data = DataGenerator(img_size, num_frames, hparams, sampling_rate, test)
-
-    train_loader = DataLoader(
-        train_data, batch_size=batch_size, num_workers=num_workers, shuffle=shuffle)
+    train_data = DataGenerator(data_path, img_size, num_frames, sampling_rate, split)
+    train_loader = DataLoader(train_data, batch_size=batch_size, num_workers=num_workers, shuffle=shuffle)
 
     return train_loader

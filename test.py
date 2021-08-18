@@ -137,7 +137,7 @@ def generate_video(mag, phase, args):
 
 	os.remove(no_sound_video)
 
-	print("Successfully generated the output video: ", video_output_mp4)
+	print("Successfully generated the output video:", video_output_mp4)
 
 
 # Function to load the model
@@ -146,9 +146,9 @@ def load_model(args):
 	model = Model()
 
 	if not torch.cuda.is_available():
-		checkpoint = torch.load(args.model_ckpt, map_location='cpu')
+		checkpoint = torch.load(args.checkpoint, map_location='cpu')
 	else:
-		checkpoint = torch.load(args.model_ckpt)
+		checkpoint = torch.load(args.checkpoint)
 
 	# model.load_state_dict(checkpoint['model_state_dict'])
 	if torch.cuda.device_count() > 1:
@@ -161,13 +161,19 @@ def load_model(args):
 		model.load_state_dict(ckpt)	
 	model = model.to(device)
 
-	print("Loaded model from: ", args.model_ckpt)
+	print("Loaded model from: ", args.checkpoint)
 
 	return model.eval()
 
 
 # Function to obtain the predictions
 def predict(args):
+
+	# Check the input video
+	video_formats = ['.mp4', '.avi', '.mkv']
+	if args.input.rsplit('.', 1)[1] not in video_formats:
+		print("Oops! Invalid input. Please try again by providing the appropriate video input.")
+		exit(0)
 
 	# Extract the frames from the given input video
 	faces = get_frames(args.input)
@@ -246,17 +252,15 @@ def predict(args):
 if __name__ == '__main__':
 
 	parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-	parser.add_argument('-i', '--input', type=str, required=True, help='Filepath of noisy video')
-	parser.add_argument('-m', '--model_ckpt', type=str,  required=True, \
-						help='Name of saved checkpoint to load weights from')
-	parser.add_argument('-sr', '--sampling_rate', type=int, default=16000)
-	parser.add_argument('-r', '--result_dir', default='results', required=False, \
-						help='Name of the directory to save the results')
-	parser.add_argument('-f', '--fps', type=float, default=25., required=False, \
-						help='FPS of input video, ignore if image', )
-	parser.add_argument('-g', '--n_gpu', default=1, type=int, help='Number of GPUs to use', )
-	parser.add_argument('-mask', '--mask', default=None, help='Mask left (l) or right (r) speaker')
 	
+	parser.add_argument('--input', type=str, required=True, help='Filepath of noisy video')
+	parser.add_argument('--checkpoint', type=str, required=True, help='Name of trained checkpoint to load weights from')
+	
+	parser.add_argument('--mask', default=None, required=False, help='Type either "l" or "r" which specifies to mask the left (l) or right (r) speaker')
+	
+	parser.add_argument('--result_dir', default='results', required=False, help='Name of the directory to save the results')
+	parser.add_argument('--sampling_rate', type=int, required=False, default=16000)
+	parser.add_argument('--fps', type=float, default=25., required=False, help='FPS of input video, ignore if image')
 
 	args = parser.parse_args()
 	args.img_size = 96

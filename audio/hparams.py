@@ -3,13 +3,14 @@ from glob import glob
 import os, pickle
 import numpy as np
 
-def _get_image_list(split):
-    pkl_file = 'filelist_vox2_{}.pkl'.format(split)
+def get_filelist(path, split):
+    pkl_file = 'filelist_{}.pkl'.format(split)
     if os.path.exists(pkl_file):
         with open(pkl_file, 'rb') as p:
             return pickle.load(p)
     else:
-        filelist = glob('data/*/*/*.mp4')
+        filelist = glob('{}/mp4/*/*/*.mp4'.format(path))
+        # filelist = glob('data/*/*/*.mp4')
         # filelist = glob('/scratch/sindhu/dev/mp4/*/*/*.mp4')
 
         if split == 'train':
@@ -86,20 +87,12 @@ hparams = HParams(
     # Number of G&L iterations, typically 30 is enough but we use 60 to ensure convergence.
     ###########################################################################################################################################
     
+    initial_learning_rate=1e-4,
     wav_step_size=16000,
     fps=25,
     img_size=96,
     spec_step_size=100,
-
     overlap=5,
-    mel_overlap=0,
-    start_idx=0,
-    mel_start_idx=0,
-    # mel_step_size=48,
-    all_audio=_get_image_list('train'),
-    all_test_audio=_get_image_list('test'),
-
-    initial_learning_rate=1e-4,
         
 )
 

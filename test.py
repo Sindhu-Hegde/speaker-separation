@@ -170,8 +170,8 @@ def load_model(args):
 def predict(args):
 
 	# Check the input video
-	video_formats = ['.mp4', '.avi', '.mkv']
-	if args.input.rsplit('.', 1)[1] not in video_formats:
+	video_formats = ['mp4', 'avi', 'mkv']
+	if args.input.rsplit('/')[-1].rsplit('.', 1)[1] not in video_formats:
 		print("Oops! Invalid input. Please try again by providing the appropriate video input.")
 		exit(0)
 
